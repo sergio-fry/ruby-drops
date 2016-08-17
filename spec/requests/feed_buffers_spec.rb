@@ -1,7 +1,7 @@
 require 'rails_helper'
 
-RSpec.describe "FeedBuffers", type: :request do
-  describe "GET /feed_buffers" do
+RSpec.describe 'FeedBuffers', type: :request do
+  describe 'GET /feed_buffers' do
     let(:feed_url) { 'http://example.com/feed' }
 
     before do
@@ -11,12 +11,12 @@ RSpec.describe "FeedBuffers", type: :request do
       get '/drops/feed_buffer', params: { feed_url: feed_url }
     end
 
-    it "works!" do
+    it 'works!' do
       expect(response).to have_http_status(200)
     end
 
     describe '@items' do
-      subject { Nokogiri::XML(@response.body).css("item") }
+      subject { Nokogiri::XML(@response.body).css('item') }
       it { is_expected.to be_present }
       its(:size) { is_expected.to eq 1 }
     end

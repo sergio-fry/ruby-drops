@@ -1,5 +1,7 @@
 class Drops::FeedBufferController < ApplicationController
   def index
+    @store = DropStorage.find_or_create_by(name: :feed_buffer)
+
     feed = open(params[:feed_url]).read
     @feed_doc = Nokogiri::XML(feed)
 
@@ -10,14 +12,21 @@ class Drops::FeedBufferController < ApplicationController
   <title>Сергей Удалов / diggs</title>
   <description></description>
 
-  #{items}
+  #{published_items}
 </channel>
     FEED
   end
 
   private
 
+  def published_items
+    items.first
+  end
+
+  def most_recent_published_at
+  end
+
   def items
-    @feed_doc.css('item').first
+    @feed_doc.css('item')
   end
 end
