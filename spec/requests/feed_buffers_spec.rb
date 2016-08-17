@@ -3,12 +3,13 @@ require 'rails_helper'
 RSpec.describe 'FeedBuffers', type: :request do
   describe 'GET /feed_buffers' do
     let(:feed_url) { 'http://example.com/feed' }
+    let(:interval) { 10 }
 
     before do
       stub_request(:get, feed_url)
         .to_return(status: 200, body: File.open(Rails.root.join('spec/files/diggs.rss')).read)
 
-      get '/drops/feed_buffer', params: { feed_url: feed_url }
+      get '/drops/feed_buffer', params: { feed_url: feed_url, interval: 10 }
     end
 
     it 'works!' do
@@ -25,6 +26,19 @@ RSpec.describe 'FeedBuffers', type: :request do
 
         it 'should be the oldest one' do
           expect(item.css('title').text).to eq '2 Hours ago'
+        end
+
+        context '11 minutes later' do
+          before do
+            Timecop.travel 11.minutes.from_now
+          end
+
+          after { Timecop.return }
+
+          it 'should be the second one' do
+            get '/drops/feed_buffer', params: { feed_url: feed_url, interval: 10 }
+            expect(item.css('title').text).to eq '1 Hour ago'
+          end
         end
       end
     end
