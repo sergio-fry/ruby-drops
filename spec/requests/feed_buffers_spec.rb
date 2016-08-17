@@ -18,6 +18,7 @@ RSpec.describe "FeedBuffers", type: :request do
     describe '@items' do
       subject { Nokogiri::XML(@response.body).css("item") }
       it { is_expected.to be_present }
+      its(:size) { is_expected.to eq 1 }
     end
   end
 end
