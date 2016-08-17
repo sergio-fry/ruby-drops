@@ -12,7 +12,7 @@ class Drops::FeedBufferController < ApplicationController
   <title>Сергей Удалов / diggs</title>
   <description></description>
 
-  #{published_items}
+    #{published_items.join}
 </channel>
     FEED
   end
@@ -20,13 +20,24 @@ class Drops::FeedBufferController < ApplicationController
   private
 
   def published_items
-    items.first
+    [items.sort_by(&:published_at).first]
   end
 
-  def most_recent_published_at
+  class FeedItem
+    def initialize(doc)
+      @doc = doc
+    end
+
+    def published_at
+      Time.parse @doc.css('pubDate').to_s
+    end
+
+    def to_s
+      @doc.to_xml
+    end
   end
 
   def items
-    @feed_doc.css('item')
+    @feed_doc.css('item').map { |item| FeedItem.new(item) }
   end
 end

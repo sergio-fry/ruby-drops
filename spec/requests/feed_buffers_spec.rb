@@ -16,9 +16,17 @@ RSpec.describe 'FeedBuffers', type: :request do
     end
 
     describe '@items' do
-      subject { Nokogiri::XML(@response.body).css('item') }
+      subject(:items) { Nokogiri::XML(@response.body).css('item') }
       it { is_expected.to be_present }
       its(:size) { is_expected.to eq 1 }
+
+      describe 'most resecent published item' do
+        subject(:item) { items.first }
+
+        it 'should be the oldest one' do
+          expect(item.css('title').text).to eq '2 Hours ago'
+        end
+      end
     end
   end
 end
