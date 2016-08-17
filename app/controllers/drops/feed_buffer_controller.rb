@@ -13,11 +13,11 @@ class Drops::FeedBufferController < ApplicationController
   <title>Сергей Удалов / diggs</title>
   <description></description>
 
-    #{published_items_list.all.join}
+    #{published_items_list.all.reverse.join}
 </channel>
     FEED
 
-    published!
+    update_stats!
   end
 
   private
@@ -27,12 +27,8 @@ class Drops::FeedBufferController < ApplicationController
       @doc = doc
     end
 
-    def published_at
-      Time.parse @doc.css('pubDate').to_s
-    end
-
     def guid
-      @doc.css('link').to_s
+      @doc.css('link').text
     end
 
     def to_s
@@ -47,26 +43,34 @@ class Drops::FeedBufferController < ApplicationController
     end
 
     def push(item)
-      list.push item.to_s
+      list.push serialize(item)
       save
     end
 
     def pop
-      res = FeedItem.new Nokogiri::XML(list.shift)
+      res = deserialize list.shift
       save
 
       res
     end
 
     def last
-      list.last
+      deserialize list.last
     end
 
     def all
-      list
+      list.map { |it| deserialize(it) }
     end
 
     private
+
+    def serialize(item)
+      item.to_s
+    end
+
+    def deserialize(str)
+      FeedItem.new Nokogiri::XML(str)
+    end
 
     def list
       @list ||= @store.read(@name) || []
@@ -78,7 +82,7 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def new_items
-    items
+    items.reverse.reject { |it| published_items_list.all.include?(it) }
   end
 
   def new_items_queue
@@ -90,18 +94,19 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def next_item
-    new_items_queue.pop
+    return unless need_more_items?
+    @next_item ||= new_items_queue.pop
   end
 
   def need_more_items?
-    last_published_at <= interval.ago
+    last_published_at.blank? || (last_published_at <= interval.ago)
   end
 
   def last_published_at
     store.read(:last_published_at)
   end
 
-  def published!
+  def update_stats!
     store.write(:last_published_at, Time.now)
   end
 
