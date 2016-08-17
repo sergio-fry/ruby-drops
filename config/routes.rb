@@ -1,3 +1,5 @@
 Rails.application.routes.draw do
-  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
+  namespace :drops do
+    get 'feed_buffer', controller: 'feed_buffer', action: :index
+  end
 end
