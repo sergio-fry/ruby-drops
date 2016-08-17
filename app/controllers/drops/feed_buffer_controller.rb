@@ -1,8 +1,6 @@
 class Drops::FeedBufferController < ApplicationController
   def index
-    new_items.each do |item|
-      new_items_queue.push item
-    end
+    push_new_items_into_queue
 
     published_items_list.push next_item if next_item.present?
 
@@ -62,6 +60,10 @@ class Drops::FeedBufferController < ApplicationController
       list.map { |it| deserialize(it) }
     end
 
+    def include?(item)
+      all.map(&:guid).include? item.guid
+    end
+
     private
 
     def serialize(item)
@@ -69,7 +71,7 @@ class Drops::FeedBufferController < ApplicationController
     end
 
     def deserialize(str)
-      FeedItem.new Nokogiri::XML(str)
+      FeedItem.new Nokogiri::XML.fragment(str)
     end
 
     def list
@@ -81,8 +83,16 @@ class Drops::FeedBufferController < ApplicationController
     end
   end
 
+  def push_new_items_into_queue
+    new_items.each do |item|
+      new_items_queue.push item
+    end
+  end
+
   def new_items
-    items.reverse.reject { |it| published_items_list.all.include?(it) }
+    items.reverse.reject do |it|
+      published_items_list.include?(it) || new_items_queue.include?(it)
+    end
   end
 
   def new_items_queue

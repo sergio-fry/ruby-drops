@@ -28,16 +28,47 @@ RSpec.describe 'FeedBuffers', type: :request do
           expect(item.css('title').text).to eq '2 Hours ago'
         end
 
-        context '11 minutes later' do
+        it { expect(items.size).to eq 1 }
+
+        context '9 minutes later' do
           before do
-            Timecop.travel 11.minutes.from_now
+            Timecop.travel 9.minutes.from_now
           end
 
           after { Timecop.return }
 
-          it 'should be the second one' do
+          it 'should be the oldest one' do
             get '/drops/feed_buffer', params: { feed_url: feed_url, interval: 10 }
+            expect(item.css('title').text).to eq '2 Hours ago'
+            expect(items.size).to eq 1
+          end
+        end
+
+        context '11 minutes later' do
+          before do
+            Timecop.travel 11.minutes.from_now
+            get '/drops/feed_buffer', params: { feed_url: feed_url, interval: 10 }
+          end
+
+          after { Timecop.return }
+
+          it 'should be fresh item' do
             expect(item.css('title').text).to eq '1 Hour ago'
+            expect(items.size).to eq 2
+          end
+
+          context '11 minutes after' do
+            before do
+              Timecop.travel 22.minutes.from_now
+              get '/drops/feed_buffer', params: { feed_url: feed_url, interval: 10 }
+            end
+
+            after { Timecop.return }
+
+            it 'should stay the same' do
+              expect(item.css('title').text).to eq '1 Hour ago'
+              expect(items.size).to eq 2
+            end
           end
         end
       end
