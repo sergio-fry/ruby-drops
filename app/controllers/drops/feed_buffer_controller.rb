@@ -1,6 +1,6 @@
 class Drops::FeedBufferController < ApplicationController
   def index
-    publish_next_item
+    publish_next_item if need_more_items?
 
     render plain: <<-FEED
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -41,8 +41,6 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def next_item
-    return unless need_more_items?
-
     if no_new_items_since_last_publish?
       nil
     elsif last_published_not_found_in_a_feed? 
