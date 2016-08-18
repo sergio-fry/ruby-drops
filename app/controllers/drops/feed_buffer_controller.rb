@@ -71,7 +71,6 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def update_stats!
-    store.write(:last_published_at, Time.now)
     store.write(:last_published_item_guid, published_items.first.guid)
   end
 
@@ -107,6 +106,8 @@ class Drops::FeedBufferController < ApplicationController
 
   def publish_next_item
     return if next_item.blank?
+
+    store.write(:last_published_at, Time.now)
     store.write(:last_published_item_guid, next_item.guid)
   end
 
