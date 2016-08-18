@@ -1,14 +1,13 @@
 class Drops::FeedBufferController < ApplicationController
   def index
     push_new_items_into_queue
-
-    published_items_list.push next_item if next_item.present?
+    publish_next_item
 
     render plain: <<-FEED
 <?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 <channel>
-  <title>Сергей Удалов / diggs</title>
+  <title>#{feed_title}</title>
   <description></description>
 
     #{published_items_list.all.reverse.join}
@@ -129,14 +128,32 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def feed_body
-    open(params[:feed_url]).read
+    Rails.cache.fetch("FeedBufferController:#{feed_url}", expires_in: (interval / 2).minutes) do
+      open(feed_url).read
+    end
+  end
+
+  def feed_url
+    params[:feed_url]
   end
 
   def store
-    @store ||= DropStorage.find_or_create_by(name: :feed_buffer)
+    @store ||= DropStorage.find_or_create_by(name: "feed_buffer_#{feed_url_hash}")
+  end
+
+  def feed_url_hash
+    Digest::SHA256.hexdigest feed_url
   end
 
   def interval
     params[:interval].to_i.minutes
+  end
+
+  def publish_next_item
+    published_items_list.push next_item if next_item.present?
+  end
+
+  def feed_title
+    feed_doc.css('title').text
   end
 end
