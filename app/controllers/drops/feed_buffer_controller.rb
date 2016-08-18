@@ -1,6 +1,5 @@
 class Drops::FeedBufferController < ApplicationController
   def index
-    push_new_items_into_queue
     publish_next_item
 
     render plain: <<-FEED
@@ -10,7 +9,7 @@ class Drops::FeedBufferController < ApplicationController
   <title>#{feed_title}</title>
   <description></description>
 
-    #{published_items_list.all.reverse.join}
+    #{published_items.join}
 </channel>
     FEED
 
@@ -19,9 +18,17 @@ class Drops::FeedBufferController < ApplicationController
 
   private
 
+  def published_items
+    items[last_published_index..-1]
+  end
+
   class FeedItem
     def initialize(doc)
       @doc = doc
+    end
+
+    def title
+      @doc.css('title').text
     end
 
     def guid
@@ -33,78 +40,28 @@ class Drops::FeedBufferController < ApplicationController
     end
   end
 
-  class ItemsList
-    def initialize(store, name)
-      @store = store
-      @name = name
-    end
-
-    def push(item)
-      list.push serialize(item)
-      save
-    end
-
-    def pop
-      res = deserialize list.shift
-      save
-
-      res
-    end
-
-    def last
-      deserialize list.last
-    end
-
-    def all
-      list.map { |it| deserialize(it) }
-    end
-
-    def include?(item)
-      all.map(&:guid).include? item.guid
-    end
-
-    private
-
-    def serialize(item)
-      item.to_s
-    end
-
-    def deserialize(str)
-      FeedItem.new Nokogiri::XML.fragment(str)
-    end
-
-    def list
-      @list ||= @store.read(@name) || []
-    end
-
-    def save
-      @store.write(@name, list)
-    end
-  end
-
-  def push_new_items_into_queue
-    new_items.each do |item|
-      new_items_queue.push item
-    end
-  end
-
-  def new_items
-    items.reverse.reject do |it|
-      published_items_list.include?(it) || new_items_queue.include?(it)
-    end
-  end
-
-  def new_items_queue
-    @new_items_queue ||= ItemsList.new store, :queue
-  end
-
-  def published_items_list
-    @published_items_list ||= ItemsList.new store, :published
-  end
-
   def next_item
     return unless need_more_items?
-    @next_item ||= new_items_queue.pop
+
+    if no_new_items_since_last_publish?
+      nil
+    elsif last_published_not_found_in_a_feed? 
+      items.last
+    else
+      items[last_published_index - 1]
+    end
+  end
+
+  def last_published_not_found_in_a_feed?
+    last_published_index.nil?
+  end
+
+  def no_new_items_since_last_publish?
+    last_published_index == 0
+  end
+
+  def last_published_index
+    items.map(&:guid).index store.read(:last_published_item_guid)
   end
 
   def need_more_items?
@@ -117,6 +74,7 @@ class Drops::FeedBufferController < ApplicationController
 
   def update_stats!
     store.write(:last_published_at, Time.now)
+    store.write(:last_published_item_guid, published_items.first.guid)
   end
 
   def items
@@ -150,7 +108,8 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def publish_next_item
-    published_items_list.push next_item if next_item.present?
+    return if next_item.blank?
+    store.write(:last_published_item_guid, next_item.guid)
   end
 
   def feed_title
