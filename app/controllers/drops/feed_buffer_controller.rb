@@ -111,6 +111,6 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def feed_title
-    feed_doc.css('title').text
+    feed_doc.css('title').first.text
   end
 end
