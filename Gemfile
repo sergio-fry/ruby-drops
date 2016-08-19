@@ -32,6 +32,7 @@ gem 'jbuilder', '~> 2.5'
 group :production do
   gem 'pg'
   gem 'dalli'
+  gem 'connection_pool'
 end
 
 group :development, :test do
