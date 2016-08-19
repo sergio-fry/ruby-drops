@@ -57,7 +57,8 @@ Rails.application.configure do
                      :password => ENV["MEMCACHIER_PASSWORD"],
                      :failover => true,
                      :socket_timeout => 1.5,
-                     :socket_failure_delay => 0.2
+                     :socket_failure_delay => 0.2,
+                     :pool_size => 10
                     }
 
   # Use a real queuing backend for Active Job (and separate queues per environment)
