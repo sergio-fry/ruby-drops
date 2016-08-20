@@ -28,6 +28,10 @@ RSpec.describe 'FeedBuffers', type: :request do
           expect(item.css('title').text).to eq '2 Hours ago'
         end
 
+        it 'should have a link as guid' do
+          expect(item.css('guid').text).to eq 'https://politics.dirty.ru/comments/1153199'
+        end
+
         it { expect(items.size).to eq 1 }
 
         context '9 minutes later' do

@@ -36,6 +36,7 @@ class Drops::FeedBufferController < ApplicationController
     end
 
     def to_s
+      @doc.css('guid')[0].content = guid
       @doc.to_xml
     end
   end
