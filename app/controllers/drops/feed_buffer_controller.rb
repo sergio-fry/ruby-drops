@@ -84,9 +84,13 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def feed_body
-    Rails.cache.fetch("FeedBufferController:#{feed_url}", expires_in: (interval / 2).minutes) do
+    Rails.cache.fetch("FeedBufferController:#{script_id}", expires_in: expires_in) do
       open(feed_url).read
     end
+  end
+
+  def expires_in
+    [interval.to_f / 2, 1].max.minutes
   end
 
   def feed_url
@@ -94,11 +98,11 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def store
-    @store ||= DropStorage.find_or_create_by(name: "feed_buffer_#{feed_url_hash}")
+    @store ||= DropStorage.find_or_create_by(name: "feed_buffer_#{script_id}")
   end
 
-  def feed_url_hash
-    Digest::SHA256.hexdigest feed_url
+  def script_id
+    Digest::SHA256.hexdigest "#{feed_url}##{interval}"
   end
 
   def interval
