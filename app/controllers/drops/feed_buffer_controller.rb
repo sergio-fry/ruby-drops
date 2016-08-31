@@ -2,16 +2,14 @@ class Drops::FeedBufferController < ApplicationController
   def index
     publish_next_item if need_more_items?
 
-    render plain: <<-FEED
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
-<channel>
-  <title>#{feed_title}</title>
-  <description></description>
+    @feed_title = feed.title
+    @items = published_items
 
-    #{published_items.join}
-</channel>
-    FEED
+    @author = params[:author]
+
+    respond_to do |format|
+      format.atom
+    end
 
     update_stats!
   end
@@ -20,25 +18,6 @@ class Drops::FeedBufferController < ApplicationController
 
   def published_items
     items[last_published_index..-1]
-  end
-
-  class FeedItem
-    def initialize(doc)
-      @doc = doc
-    end
-
-    def title
-      @doc.css('title').text
-    end
-
-    def guid
-      @doc.css('link').text
-    end
-
-    def to_s
-      @doc.css('guid')[0].content = guid
-      @doc.to_xml
-    end
   end
 
   def next_item
@@ -60,7 +39,7 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def last_published_index
-    items.map(&:guid).index store.read(:last_published_item_guid)
+    items.map(&:id).index store.read(:last_published_item_guid)
   end
 
   def need_more_items?
@@ -72,11 +51,15 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def update_stats!
-    store.write(:last_published_item_guid, published_items.first.guid)
+    store.write(:last_published_item_guid, published_items.first.id)
   end
 
   def items
-    feed_doc.css('item').map { |item| FeedItem.new(item) }
+    Feedjira::Feed.parse(feed_body).entries
+  end
+
+  def feed
+    @feed ||= Feedjira::Feed.parse feed_body
   end
 
   def feed_doc
@@ -85,7 +68,7 @@ class Drops::FeedBufferController < ApplicationController
 
   def feed_body
     Rails.cache.fetch("FeedBufferController:#{script_id}", expires_in: expires_in) do
-      open(feed_url).read
+      Faraday.get(feed_url).body
     end
   end
 
@@ -113,10 +96,6 @@ class Drops::FeedBufferController < ApplicationController
     return if next_item.blank?
 
     store.write(:last_published_at, Time.now)
-    store.write(:last_published_item_guid, next_item.guid)
-  end
-
-  def feed_title
-    feed_doc.css('title').first.text
+    store.write(:last_published_item_guid, next_item.id)
   end
 end
