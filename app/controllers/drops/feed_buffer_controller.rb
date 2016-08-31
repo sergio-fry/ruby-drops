@@ -2,7 +2,10 @@ class Drops::FeedBufferController < ApplicationController
   def index
     publish_next_item if need_more_items?
 
+    @feed_title = feed.title
     @items = published_items
+
+    @author = params[:author]
 
     respond_to do |format|
       format.atom
@@ -65,7 +68,7 @@ class Drops::FeedBufferController < ApplicationController
 
   def feed_body
     Rails.cache.fetch("FeedBufferController:#{script_id}", expires_in: expires_in) do
-      Faraday.get(feed_body).body
+      Faraday.get(feed_url).body
     end
   end
 
@@ -94,9 +97,5 @@ class Drops::FeedBufferController < ApplicationController
 
     store.write(:last_published_at, Time.now)
     store.write(:last_published_item_guid, next_item.id)
-  end
-
-  def feed_title
-    feed_doc.css('title').first.text
   end
 end
