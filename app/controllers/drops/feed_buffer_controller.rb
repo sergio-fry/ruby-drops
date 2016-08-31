@@ -2,16 +2,11 @@ class Drops::FeedBufferController < ApplicationController
   def index
     publish_next_item if need_more_items?
 
-    render plain: <<-FEED
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
-<channel>
-  <title>#{feed_title}</title>
-  <description></description>
+    @items = published_items
 
-    #{published_items.join}
-</channel>
-    FEED
+    respond_to do |format|
+      format.atom
+    end
 
     update_stats!
   end
@@ -23,16 +18,52 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   class FeedItem
+    attr_reader :title, :content, :url
+
+    def initialize(title:, content:, url:)
+      @title, @content, @url = title, content, url
+    end
+
+    def guid
+      @url
+    end
+
+    def to_s
+      {
+        title: title,
+        content: content,
+        url: url
+      }.to_json
+    end
+  end
+
+  class FeedItemXml
     def initialize(doc)
       @doc = doc
+    end
+
+    def published
+      1.hour.ago
+    end
+
+    def id
+      guid
+    end
+
+    def url
+      @doc.css('link').text
     end
 
     def title
       @doc.css('title').text
     end
 
+    def content
+      @doc.css('description').text
+    end
+
     def guid
-      @doc.css('link').text
+      url
     end
 
     def to_s
@@ -76,7 +107,11 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def items
-    feed_doc.css('item').map { |item| FeedItem.new(item) }
+    feed_doc.css('item').map { |item| FeedItemXml.new(item) }
+  end
+
+  def feed
+    @feed ||= Feedjira::Feed.parse feed_body
   end
 
   def feed_doc
@@ -85,7 +120,7 @@ class Drops::FeedBufferController < ApplicationController
 
   def feed_body
     Rails.cache.fetch("FeedBufferController:#{script_id}", expires_in: expires_in) do
-      open(feed_url).read
+      Faraday.get(feed_body).body
     end
   end
 
