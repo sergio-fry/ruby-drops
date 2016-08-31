@@ -17,61 +17,6 @@ class Drops::FeedBufferController < ApplicationController
     items[last_published_index..-1]
   end
 
-  class FeedItem
-    attr_reader :title, :content, :url
-
-    def initialize(title:, content:, url:)
-      @title, @content, @url = title, content, url
-    end
-
-    def guid
-      @url
-    end
-
-    def to_s
-      {
-        title: title,
-        content: content,
-        url: url
-      }.to_json
-    end
-  end
-
-  class FeedItemXml
-    def initialize(doc)
-      @doc = doc
-    end
-
-    def published
-      1.hour.ago
-    end
-
-    def id
-      guid
-    end
-
-    def url
-      @doc.css('link').text
-    end
-
-    def title
-      @doc.css('title').text
-    end
-
-    def content
-      @doc.css('description').text
-    end
-
-    def guid
-      url
-    end
-
-    def to_s
-      @doc.css('guid')[0].content = guid
-      @doc.to_xml
-    end
-  end
-
   def next_item
     if no_new_items_since_last_publish?
       nil
@@ -91,7 +36,7 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def last_published_index
-    items.map(&:guid).index store.read(:last_published_item_guid)
+    items.map(&:id).index store.read(:last_published_item_guid)
   end
 
   def need_more_items?
@@ -103,11 +48,11 @@ class Drops::FeedBufferController < ApplicationController
   end
 
   def update_stats!
-    store.write(:last_published_item_guid, published_items.first.guid)
+    store.write(:last_published_item_guid, published_items.first.id)
   end
 
   def items
-    feed_doc.css('item').map { |item| FeedItemXml.new(item) }
+    Feedjira::Feed.parse(feed_body).entries
   end
 
   def feed
@@ -148,7 +93,7 @@ class Drops::FeedBufferController < ApplicationController
     return if next_item.blank?
 
     store.write(:last_published_at, Time.now)
-    store.write(:last_published_item_guid, next_item.guid)
+    store.write(:last_published_item_guid, next_item.id)
   end
 
   def feed_title

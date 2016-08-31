@@ -3,7 +3,7 @@ atom_feed do |feed|
   feed.updated(@items[0].published) if @items.present?
 
   @items.each do |item|
-    feed.entry(item, id: item.id, url: item.url) do |entry|
+    feed.entry(item, id: item.url, url: item.url) do |entry|
       entry.title(item.title)
       entry.content(item.content, type: 'html')
 
